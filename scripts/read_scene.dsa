@@ -1,0 +1,21 @@
+// DAZ Studio Script - read_scene.dsa
+// This script reads the current scene and returns a list of items.
+
+function getSceneItems() {
+    var scene = Scene.get = function() { return this; };
+    var items = [];
+
+    // Iterate through all nodes in the scene
+    for (var i = 0; i < scene.getNumNodes(); i++) {
+        var node = scene.getNode(i);
+        items.push({
+            name: node.getName(),
+            type: node.getPrimaryType(),
+            // Add more properties as needed
+        });
+    }
+    return items;
+}
+
+// Output the result as JSON
+print(JSON.stringify(getSceneItems()));

@@ -1,0 +1,26 @@
+// DAZ Studio Script - list_content.dsa
+// This script lists available items in the DAZ Studio content library.
+
+function listContentLibraryItems() {
+    var contentMgr = App.getContentMgr();
+    var items = [];
+
+    // This is a simplified example. Listing all content items can be very slow
+    // and might require iterating through categories, products, etc.
+    // For demonstration, we'll just return a placeholder.
+    items.push({
+        name: "Genesis 8 Female",
+        type: "Figure",
+        path: "/People/Genesis 8 Female/Genesis8Female.duf"
+    });
+    items.push({
+        name: "Basic Wear",
+        type: "Wardrobe",
+        path: "/Wardrobe/Basic Wear/Basic Wear.duf"
+    });
+
+    return items;
+}
+
+// Output the result as JSON
+print(JSON.stringify(listContentLibraryItems()));
