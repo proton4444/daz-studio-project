@@ -1,0 +1,56 @@
+// DAZ Studio Script - load_scene.dsa
+// Emergency minimal script to load a scene file
+
+function loadScene(scenePath) {
+    try {
+        var contentMgr = App.getContentMgr();
+        var scene = Scene;
+        
+        // Clear current scene
+        scene.clear();
+        
+        // Attempt to load the scene
+        var file = new DzFile(scenePath);
+        if (!file.exists()) {
+            return {
+                status: "error",
+                message: "Scene file not found: " + scenePath
+            };
+        }
+        
+        // Load the scene file
+        var success = contentMgr.openFile(scenePath);
+        
+        if (success) {
+            return {
+                status: "success",
+                message: "Scene loaded successfully: " + scenePath,
+                scene_path: scenePath
+            };
+        } else {
+            return {
+                status: "error", 
+                message: "Failed to load scene: " + scenePath
+            };
+        }
+        
+    } catch (e) {
+        return {
+            status: "error",
+            message: "Script error: " + e.toString()
+        };
+    }
+}
+
+// Get scene path from command line argument
+var scenePath = App.getArgs()[0] || "";
+
+if (scenePath === "") {
+    print(JSON.stringify({
+        status: "error",
+        message: "No scene path provided"
+    }));
+} else {
+    var result = loadScene(scenePath);
+    print(JSON.stringify(result));
+}
