@@ -1,0 +1,90 @@
+// DAZ Studio Script - set_pose.dsa
+// Emergency minimal script to set pose on figure
+
+function setPose(posePath, figureName) {
+    try {
+        var scene = Scene;
+        var figure = null;
+        
+        // Find the figure to apply pose to
+        if (figureName && figureName !== "") {
+            figure = scene.findNodeByLabel(figureName);
+            if (!figure) {
+                // Try by name instead of label
+                figure = scene.findNodeByName(figureName);
+            }
+        } else {
+            // Use the first selected node or first figure found
+            var selection = scene.getSelectedNodeList();
+            if (selection.length > 0) {
+                figure = selection[0];
+            } else {
+                // Find first figure in scene
+                for (var i = 0; i < scene.getNumNodes(); i++) {
+                    var node = scene.getNode(i);
+                    if (node.inherits("DzFigure")) {
+                        figure = node;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!figure) {
+            return {
+                status: "error",
+                message: "No figure found to apply pose to"
+            };
+        }
+        
+        // Check if pose file exists
+        var file = new DzFile(posePath);
+        if (!file.exists()) {
+            return {
+                status: "error",
+                message: "Pose file not found: " + posePath
+            };
+        }
+        
+        // Load and apply the pose
+        var contentMgr = App.getContentMgr();
+        figure.setSelected(true);
+        
+        var success = contentMgr.openFile(posePath, true); // true = merge with existing
+        
+        if (success) {
+            return {
+                status: "success",
+                message: "Pose applied successfully to " + figure.getLabel(),
+                pose_path: posePath,
+                figure_name: figure.getLabel()
+            };
+        } else {
+            return {
+                status: "error",
+                message: "Failed to apply pose from: " + posePath
+            };
+        }
+        
+    } catch (e) {
+        return {
+            status: "error",
+            message: "Script error: " + e.toString()
+        };
+    }
+}
+
+// Get arguments from command line
+var args = App.getArgs();
+var posePath = args[0] || "";
+var figureName = args[1] || "";
+
+if (posePath === "") {
+    print(JSON.stringify({
+        status: "error", 
+        message: "No pose path provided"
+    }));
+} else {
+    var result = setPose(posePath, figureName);
+    print(JSON.stringify(result));
+}
