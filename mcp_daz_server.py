@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 import subprocess
 import sys
@@ -13,9 +14,11 @@ except ImportError:
     WEBSOCKETS_AVAILABLE = False
 
 """
-MCP DAZ Server — v1.2 (proper MCP methods)
+MCP DAZ Server — v1.3 (emergency protocol fix)
 - JSON-RPC 2.0 over WebSocket
 - Implements MCP control plane:
+  • initialize (FIXED)
+  • notifications/initialized (ADDED)
   • tools/list
   • tools/call
   • resources/list (empty for now)
@@ -186,22 +189,61 @@ def rpc_error(req_id, code, message):
     return json.dumps({"jsonrpc": "2.0", "id": req_id, "error": {"code": code, "message": message}})
 
 
+def rpc_notification(method, params=None):
+    msg = {"jsonrpc": "2.0", "method": method}
+    if params:
+        msg["params"] = params
+    return json.dumps(msg)
+
+
 # === MCP method handlers ===
-async def handle_tools_list(req_id):
+def handle_initialize(req_id, params):
+    """Handle MCP initialize handshake"""
+    server_info = {
+        "name": "daz-studio-mcp",
+        "version": "1.3.0"
+    }
+    capabilities = {
+        "tools": {},
+        "resources": {},
+        "prompts": {}
+    }
+    
+    protocol_version = params.get("protocolVersion", "2025-06-18")
+    result = {
+        "protocolVersion": protocol_version,
+        "capabilities": capabilities,
+        "serverInfo": server_info
+    }
+    return rpc_result(req_id, result)
+
+
+def handle_tools_list(req_id):
     return rpc_result(req_id, {"tools": TOOLS})
 
 
-async def handle_tools_call(req_id, params):
+def handle_tools_call(req_id, params):
     name = (params or {}).get("name")
     args = (params or {}).get("arguments") or {}
 
     if name == "load_scene":
         scene_path = args.get("scene_path", "")
         result = run_daz_script("load_scene.dsa", scene_path)
+    elif name == "set_pose":
+        pose_path = args.get("pose_path", "")
+        figure_name = args.get("figure_name", "")
+        result = run_daz_script("set_pose.dsa", pose_path, figure_name)
+    elif name == "render_scene":
+        output_path = args.get("output_path", "")
+        width = args.get("width", 800)
+        height = args.get("height", 600)
+        result = run_daz_script("render_scene.dsa", output_path, width, height)
     elif name == "read_scene":
         result = run_daz_script("read_scene.dsa")
     elif name == "list_content":
         result = run_daz_script("list_content.dsa")
+    else:
+        result = {"status": "error", "stderr": f"Unknown tool: {name}"}
         
     # Normalize output
     if result.get("status") == "ok":
@@ -223,10 +265,12 @@ async def handle_mcp_request(websocket, path):
                 method = req.get("method")
                 params = req.get("params")
 
-                if method == "tools/list":
-                    response = await handle_tools_list(req_id)
+                if method == "initialize":
+                    response = handle_initialize(req_id, params or {})
+                elif method == "tools/list":
+                    response = handle_tools_list(req_id)
                 elif method == "tools/call":
-                    response = await handle_tools_call(req_id, params)
+                    response = handle_tools_call(req_id, params)
                 elif method == "resources/list":
                     response = rpc_result(req_id, {"resources": []})
                 elif method == "prompts/list":
@@ -274,7 +318,9 @@ if __name__ == '__main__':
                     method = req.get("method")
                     params = req.get("params")
 
-                    if method == "tools/list":
+                    if method == "initialize":
+                        response = handle_initialize(req_id, params or {})
+                    elif method == "tools/list":
                         response = handle_tools_list(req_id)
                     elif method == "tools/call":
                         response = handle_tools_call(req_id, params)
