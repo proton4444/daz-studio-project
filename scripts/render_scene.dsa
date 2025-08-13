@@ -1,0 +1,71 @@
+// DAZ Studio Script - render_scene.dsa  
+// Emergency minimal script to render current scene
+
+function renderScene(outputPath, width, height) {
+    try {
+        var renderMgr = App.getRenderMgr();
+        var renderOptions = renderMgr.getRenderOptions();
+        
+        // Set render dimensions
+        if (width && !isNaN(width)) {
+            renderOptions.setPixelSize(new Size(parseInt(width), parseInt(height) || parseInt(width)));
+        }
+        
+        // Set output path
+        if (outputPath && outputPath !== "") {
+            renderOptions.setImageFilename(outputPath);
+            renderOptions.setDoSaveImage(true);
+        }
+        
+        // Start render
+        renderMgr.doRender(renderOptions);
+        
+        // Wait for render to complete (basic polling)
+        var timeout = 30000; // 30 seconds timeout
+        var start = Date.now();
+        
+        while (renderMgr.isRendering() && (Date.now() - start) < timeout) {
+            App.processEvents();
+            // Small delay to prevent tight loop
+            var end = Date.now() + 100;
+            while (Date.now() < end) { /* wait */ }
+        }
+        
+        if (renderMgr.isRendering()) {
+            return {
+                status: "error",
+                message: "Render timeout after 30 seconds"
+            };
+        }
+        
+        return {
+            status: "success",
+            message: "Render completed successfully",
+            output_path: outputPath,
+            width: parseInt(width) || renderOptions.getPixelSize().width,
+            height: parseInt(height) || renderOptions.getPixelSize().height
+        };
+        
+    } catch (e) {
+        return {
+            status: "error",
+            message: "Script error: " + e.toString()
+        };
+    }
+}
+
+// Get arguments from command line
+var args = App.getArgs();
+var outputPath = args[0] || "";
+var width = args[1] || "800";
+var height = args[2] || "600";
+
+if (outputPath === "") {
+    print(JSON.stringify({
+        status: "error",
+        message: "No output path provided"
+    }));
+} else {
+    var result = renderScene(outputPath, width, height);
+    print(JSON.stringify(result));
+}
